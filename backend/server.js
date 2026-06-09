@@ -28,7 +28,6 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// extrai hashtags do título
 function extractTags(title = "") {
   const tags = [];
   title.replace(/#(\w+)/g, (_, t) => tags.push(t.toLowerCase()));
@@ -37,43 +36,54 @@ function extractTags(title = "") {
 
 // ── ROTAS PÚBLICAS ────────────────────────────────────────────────────────────
 
-app.get("/videos", (req, res) => {
-  const { tag } = req.query;
-  let videos = db.getVideos();
-  if (tag) videos = videos.filter(v => (v.tags || []).includes(tag.toLowerCase()));
-  res.json(videos.sort(() => Math.random() - 0.5));
+app.get("/videos", async (req, res) => {
+  try {
+    const { tag } = req.query;
+    let videos = await db.getVideos();
+    if (tag) videos = videos.filter(v => (v.tags || []).includes(tag.toLowerCase()));
+    res.json(videos);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get("/albums", (req, res) => {
-  const { tag } = req.query;
-  let albums = db.getAlbums();
-  if (tag) albums = albums.filter(a => (a.tags || []).includes(tag.toLowerCase()));
-  res.json(albums.sort(() => Math.random() - 0.5));
+app.get("/albums", async (req, res) => {
+  try {
+    const { tag } = req.query;
+    let albums = await db.getAlbums();
+    if (tag) albums = albums.filter(a => (a.tags || []).includes(tag.toLowerCase()));
+    res.json(albums);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get("/tags", (req, res) => {
-  const tagMap = {};
-  [...db.getVideos(), ...db.getAlbums()].forEach(item => {
-    (item.tags || []).forEach(t => { tagMap[t] = (tagMap[t] || 0) + 1; });
-  });
-  const tags = Object.entries(tagMap)
-    .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count);
-  res.json(tags);
+app.get("/tags", async (req, res) => {
+  try {
+    const tagMap = {};
+    const [videos, albums] = await Promise.all([db.getVideos(), db.getAlbums()]);
+    [...videos, ...albums].forEach(item => {
+      (item.tags || []).forEach(t => { tagMap[t] = (tagMap[t] || 0) + 1; });
+    });
+    const tags = Object.entries(tagMap)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count);
+    res.json(tags);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post("/videos/:id/like", (req, res) => {
-  const delta = req.body.action === "remove" ? -1 : 1;
-  const video = db.updateVideoLikes(req.params.id, delta);
-  if (!video) return res.status(404).json({ error: "Não encontrado" });
-  res.json({ likes: video.likes });
+app.post("/videos/:id/like", async (req, res) => {
+  try {
+    const delta = req.body.action === "remove" ? -1 : 1;
+    const video = await db.updateVideoLikes(req.params.id, delta);
+    if (!video) return res.status(404).json({ error: "Não encontrado" });
+    res.json({ likes: video.likes });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post("/albums/:id/like", (req, res) => {
-  const delta = req.body.action === "remove" ? -1 : 1;
-  const album = db.updateAlbumLikes(req.params.id, delta);
-  if (!album) return res.status(404).json({ error: "Não encontrado" });
-  res.json({ likes: album.likes });
+app.post("/albums/:id/like", async (req, res) => {
+  try {
+    const delta = req.body.action === "remove" ? -1 : 1;
+    const album = await db.updateAlbumLikes(req.params.id, delta);
+    if (!album) return res.status(404).json({ error: "Não encontrado" });
+    res.json({ likes: album.likes });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── ROTAS ADMIN ───────────────────────────────────────────────────────────────
@@ -91,17 +101,15 @@ app.post("/admin/videos", requireAdmin, upload.single("file"), async (req, res) 
     const key = `videos/${uuid()}.${ext}`;
     const url = await uploadToR2(req.file.buffer, key, req.file.mimetype);
     const tags = extractTags(title);
-    const video = db.addVideo({ id: uuid(), title, tags, url, r2Key: key, likes: 0, views: 0, createdAt: new Date().toISOString() });
+    const video = await db.addVideo({ id: uuid(), title, tags, url, r2Key: key, likes: 0, views: 0, createdAt: new Date().toISOString() });
     res.status(201).json(video);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Upload de álbum (múltiplas fotos)
 app.post("/admin/albums", requireAdmin, upload.array("files", 50), async (req, res) => {
   try {
     const { title } = req.body;
     if (!title || !req.files?.length) return res.status(400).json({ error: "title e files são obrigatórios" });
-
     const photos = [];
     for (const file of req.files) {
       const ext = file.originalname.split(".").pop();
@@ -109,11 +117,9 @@ app.post("/admin/albums", requireAdmin, upload.array("files", 50), async (req, r
       const url = await uploadToR2(file.buffer, key, file.mimetype);
       photos.push({ id: uuid(), url, r2Key: key });
     }
-
     const tags = extractTags(title);
-    const album = db.addAlbum({
-      id: uuid(), title, tags,
-      photos,
+    const album = await db.addAlbum({
+      id: uuid(), title, tags, photos,
       coverUrl: photos[0]?.url || null,
       photoCount: photos.length,
       likes: 0,
@@ -125,30 +131,31 @@ app.post("/admin/albums", requireAdmin, upload.array("files", 50), async (req, r
 
 app.delete("/admin/videos/:id", requireAdmin, async (req, res) => {
   try {
-    const video = db.getVideo(req.params.id);
+    const video = await db.getVideo(req.params.id);
     if (!video) return res.status(404).json({ error: "Não encontrado" });
     await deleteFromR2(video.r2Key);
-    db.deleteVideo(req.params.id);
+    await db.deleteVideo(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete("/admin/albums/:id", requireAdmin, async (req, res) => {
   try {
-    const album = db.getAlbum(req.params.id);
+    const album = await db.getAlbum(req.params.id);
     if (!album) return res.status(404).json({ error: "Não encontrado" });
     for (const photo of (album.photos || [])) await deleteFromR2(photo.r2Key).catch(() => {});
-    db.deleteAlbum(req.params.id);
+    await db.deleteAlbum(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get("/admin/library", requireAdmin, (req, res) => {
-  res.json({ videos: db.getVideos(), albums: db.getAlbums() });
+app.get("/admin/library", requireAdmin, async (req, res) => {
+  try {
+    const [videos, albums] = await Promise.all([db.getVideos(), db.getAlbums()]);
+    res.json({ videos, albums });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get("/health", (req, res) => res.json({ status: "ok", ts: new Date().toISOString() }));
 
-app.listen(PORT, () => {
-  console.log(`\n🌙 Lumina backend em http://localhost:${PORT}\n`);
-});
+app.listen(PORT, () => console.log(`\n🌙 Lumina backend em http://localhost:${PORT}\n`));
