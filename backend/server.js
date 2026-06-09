@@ -64,7 +64,7 @@ app.get("/tags", async (req,res) => {
         tagMap[t] = (tagMap[t]||0) + 1;
         if (!tagCovers[t]) {
           // pega a primeira cover disponível
-          tagCovers[t] = item.coverUrl || item.url || null;
+          tagCovers[t] = item.coverUrl || null; // só imagem, não URL de vídeo
         }
       }
     }
