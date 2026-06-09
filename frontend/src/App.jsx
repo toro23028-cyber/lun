@@ -50,36 +50,65 @@ function HashtagBadge({tag,onClick}){
   return <span onClick={e=>{e.stopPropagation();onClick&&onClick(tag);}} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.65)",fontSize:11,padding:"2px 8px",borderRadius:20,cursor:onClick?"pointer":"default",fontFamily:"monospace",letterSpacing:0.5,whiteSpace:"nowrap"}}>#{tag}</span>;
 }
 
+// ── HEART ANIMATION ───────────────────────────────────────────────────────────
+function HeartBurst({ visible }) {
+  if (!visible) return null;
+  return (
+    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none",zIndex:20}}>
+      <div style={{fontSize:80,color:"#f472b6",animation:"heartBurst 0.6s ease-out forwards"}}>♥</div>
+    </div>
+  );
+}
+
+// ── SIDE ACTIONS ─────────────────────────────────────────────────────────────
+// Centralizado verticalmente, deslocado um pouco acima do centro
+function SideActions({ item, liked, onLike, onComment, onShare, commentCount }) {
+  return (
+    <div style={{position:"absolute",right:12,top:"50%",transform:"translateY(-80%)",display:"flex",flexDirection:"column",alignItems:"center",gap:20,zIndex:10}}>
+      <button onClick={onLike} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
+        <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.45)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,transition:"transform 0.15s",transform:liked?"scale(1.15)":"scale(1)"}}>
+          <span style={{color:liked?"#f472b6":"#fff"}}>{liked?"♥":"♡"}</span>
+        </div>
+        <span style={{color:"#fff",fontSize:11,textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{fmtNum((item.likes||0)+(liked?1:0))}</span>
+      </button>
+      <button onClick={onComment} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
+        <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.45)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>💬</div>
+        <span style={{color:"#fff",fontSize:11,textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{fmtNum(commentCount)}</span>
+      </button>
+      <button onClick={onShare} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
+        <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.45)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>↗</div>
+        <span style={{color:"#fff",fontSize:11,textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>Share</span>
+      </button>
+    </div>
+  );
+}
+
 // ── COMMENTS PANEL ────────────────────────────────────────────────────────────
 function CommentsPanel({ postId, postType, onClose }) {
-  const [comments, setComments] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [comments,setComments]=useState([]);
+  const [text,setText]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [sending,setSending]=useState(false);
 
-  useEffect(() => {
+  useEffect(()=>{
     fetch(`${API}/comments/${postType}/${postId}`)
       .then(r=>r.json()).then(d=>{setComments(d);setLoading(false);}).catch(()=>setLoading(false));
-  }, [postId, postType]);
+  },[postId,postType]);
 
   const send = async () => {
     if (!text.trim()) return;
     setSending(true);
     try {
-      const res = await fetch(`${API}/comments`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ postId, postType, text: text.trim() })
-      });
+      const res = await fetch(`${API}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({postId,postType,text:text.trim()})});
       const c = await res.json();
-      setComments(prev => [c, ...prev]);
+      setComments(prev=>[c,...prev]);
       setText("");
     } catch{}
     setSending(false);
   };
 
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:150,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:150,display:"flex",alignItems:"flex-end",justifyContent:"center",background:"rgba(0,0,0,0.4)"}}>
       <div onClick={e=>e.stopPropagation()} style={{background:"#12121e",borderRadius:"16px 16px 0 0",width:"min(100%,420px)",maxHeight:"70vh",display:"flex",flexDirection:"column",border:"1px solid rgba(255,255,255,0.08)"}}>
         <div style={{padding:"16px 20px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <p style={{color:"#fff",fontFamily:"'DM Serif Display',serif",fontSize:17,margin:0,fontWeight:400}}>Comentários <span style={{color:"rgba(255,255,255,0.4)",fontSize:13}}>({comments.length})</span></p>
@@ -100,43 +129,11 @@ function CommentsPanel({ postId, postType, onClose }) {
         </div>
         <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",gap:8}}>
           <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Escreva um comentário..." style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"8px 14px",color:"#fff",fontSize:14,outline:"none"}}/>
-          <button onClick={send} disabled={sending||!text.trim()} style={{background:"linear-gradient(135deg,#7c3aed,#c084fc)",border:"none",borderRadius:20,padding:"8px 16px",color:"#fff",cursor:sending?"not-allowed":"pointer",fontSize:13,flexShrink:0}}>
+          <button onClick={send} disabled={sending||!text.trim()} style={{background:"linear-gradient(135deg,#7c3aed,#c084fc)",border:"none",borderRadius:20,padding:"8px 16px",color:"#fff",cursor:sending?"not-allowed":"pointer",fontSize:13,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
             {sending?<Spinner size={14}/>:"Enviar"}
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── SIDE ACTIONS (TikTok style) ───────────────────────────────────────────────
-function SideActions({ item, liked, onLike, onComment, onShare, commentCount }) {
-  return (
-    <div style={{position:"absolute",right:12,bottom:100,display:"flex",flexDirection:"column",alignItems:"center",gap:20,zIndex:10}}>
-      <button onClick={onLike} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
-        <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.4)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,transition:"transform 0.15s",transform:liked?"scale(1.2)":"scale(1)"}}>
-          <span style={{color:liked?"#f472b6":"#fff"}}>{liked?"♥":"♡"}</span>
-        </div>
-        <span style={{color:"#fff",fontSize:11,textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{fmtNum((item.likes||0)+(liked?1:0))}</span>
-      </button>
-      <button onClick={onComment} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
-        <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.4)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>💬</div>
-        <span style={{color:"#fff",fontSize:11,textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>{fmtNum(commentCount)}</span>
-      </button>
-      <button onClick={onShare} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
-        <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.4)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>↗</div>
-        <span style={{color:"#fff",fontSize:11,textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>Share</span>
-      </button>
-    </div>
-  );
-}
-
-// ── HEART ANIMATION ───────────────────────────────────────────────────────────
-function HeartBurst({ visible }) {
-  if (!visible) return null;
-  return (
-    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none",zIndex:20}}>
-      <div style={{fontSize:80,animation:"heartBurst 0.6s ease-out forwards"}}>♥</div>
     </div>
   );
 }
@@ -149,30 +146,32 @@ function VideoFeedItem({ video, liked, onLike, onTagClick, onComment, commentCou
   const lastTap = useRef(0);
 
   const handleDoubleTap = () => {
-    if (!liked) { onLike(); }
+    if (!liked) onLike();
     setShowHeart(true);
     setTimeout(() => setShowHeart(false), 600);
   };
 
-  const handleClick = () => {
+  const handleClick = (e) => {
+    e.stopPropagation();
     const now = Date.now();
-    if (now - lastTap.current < 300) { handleDoubleTap(); }
+    if (now - lastTap.current < 300) handleDoubleTap();
     lastTap.current = now;
   };
 
-  const handleShare = () => {
+  const handleShare = (e) => {
+    e.stopPropagation();
     const url = `${window.location.origin}/v/${video.id}`;
     if (navigator.share) navigator.share({ url });
-    else { navigator.clipboard.writeText(url); alert("Link copiado!"); }
+    else { navigator.clipboard.writeText(url).catch(()=>{}); alert("Link copiado!"); }
   };
 
   return (
     <div style={{width:"100%",height:"100%",background:bg,position:"relative",userSelect:"none"}} onClick={handleClick}>
       {video.url && <video src={video.url} autoPlay loop muted playsInline style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
-      <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.85) 100%)"}}/>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.85) 100%)",pointerEvents:"none"}}/>
       <HeartBurst visible={showHeart}/>
-      <SideActions item={video} liked={liked} onLike={onLike} onComment={onComment} onShare={handleShare} commentCount={commentCount}/>
-      <div style={{position:"absolute",bottom:0,left:0,right:60,padding:"16px 16px 20px"}}>
+      <SideActions item={video} liked={liked} onLike={(e)=>{if(e)e.stopPropagation();onLike();}} onComment={(e)=>{if(e)e.stopPropagation();onComment();}} onShare={handleShare} commentCount={commentCount}/>
+      <div style={{position:"absolute",bottom:0,left:0,right:64,padding:"16px 16px 20px"}}>
         {clean && <p style={{color:"#fff",fontFamily:"'DM Serif Display',serif",fontSize:17,margin:"0 0 8px",lineHeight:1.3,textShadow:"0 2px 8px rgba(0,0,0,0.8)"}}>{clean}</p>}
         {tags.length>0 && <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{tags.map(t=><HashtagBadge key={t} tag={t} onClick={onTagClick}/>)}</div>}
       </div>
@@ -180,15 +179,16 @@ function VideoFeedItem({ video, liked, onLike, onTagClick, onComment, commentCou
   );
 }
 
-// ── ALBUM FEED ITEM (swipeable, rolável) ──────────────────────────────────────
-function AlbumFeedItem({ album, liked, onLike, onTagClick, onComment, onNext, commentCount }) {
+// ── ALBUM FEED ITEM ───────────────────────────────────────────────────────────
+function AlbumFeedItem({ album, liked, onLike, onTagClick, onComment, commentCount }) {
   const g = PHOTO_GRADIENTS[hashIdx(album.id, PHOTO_GRADIENTS.length)];
   const { clean, tags } = parseTags(album.title || "");
   const photos = album.photos || [];
   const [current, setCurrent] = useState(0);
-  const touchX = useRef(null);
-  const touchY = useRef(null);
   const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
   const [showHeart, setShowHeart] = useState(false);
   const lastTap = useRef(0);
 
@@ -204,55 +204,84 @@ function AlbumFeedItem({ album, liked, onLike, onTagClick, onComment, onNext, co
     lastTap.current = now;
   };
 
-  const onTouchStart = (e) => { touchX.current = e.touches[0].clientX; touchY.current = e.touches[0].clientY; };
-  const onTouchMove = (e) => {
-    if (touchX.current === null) return;
-    const dx = e.touches[0].clientX - touchX.current;
-    const dy = e.touches[0].clientY - touchY.current;
-    if (Math.abs(dx) > Math.abs(dy)) { e.stopPropagation(); setDragX(dx); }
-  };
-  const onTouchEnd = (e) => {
-    if (Math.abs(dragX) > 60) {
-      if (dragX < 0 && current < photos.length - 1) setCurrent(c => c + 1);
-      else if (dragX > 0 && current > 0) setCurrent(c => c - 1);
-    }
-    setDragX(0); touchX.current = null; touchY.current = null;
+  // Touch handlers — stopPropagation para não ativar scroll do feed
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    setIsDragging(false);
   };
 
-  const handleShare = () => {
+  const onTouchMove = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+      e.stopPropagation(); // impede scroll vertical do feed
+      setIsDragging(true);
+      setDragX(dx);
+    }
+  };
+
+  const onTouchEnd = () => {
+    if (isDragging) {
+      if (dragX < -50 && current < photos.length - 1) setCurrent(c => c + 1);
+      else if (dragX > 50 && current > 0) setCurrent(c => c - 1);
+    }
+    setDragX(0);
+    setIsDragging(false);
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  const handleShare = (e) => {
+    e.stopPropagation();
     const url = `${window.location.origin}/v/${album.id}`;
     if (navigator.share) navigator.share({ url });
-    else { navigator.clipboard.writeText(url); alert("Link copiado!"); }
+    else { navigator.clipboard.writeText(url).catch(()=>{}); alert("Link copiado!"); }
   };
+
+  // Navegação por clique nas setas (desktop)
+  const prevPhoto = (e) => { e.stopPropagation(); if (current > 0) setCurrent(c => c - 1); };
+  const nextPhoto = (e) => { e.stopPropagation(); if (current < photos.length - 1) setCurrent(c => c + 1); };
 
   return (
     <div style={{width:"100%",height:"100%",background:"#08080f",position:"relative",userSelect:"none",overflow:"hidden"}}
       onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={handleTap}>
+
       {/* background blur */}
-      {photos[current]?.url && <img src={photos[current].url} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",filter:"blur(24px) brightness(0.3)",transform:"scale(1.1)",pointerEvents:"none"}}/>}
-      {/* photo */}
+      {photos[current]?.url && <img src={photos[current].url} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",filter:"blur(24px) brightness(0.25)",transform:"scale(1.1)",pointerEvents:"none"}}/>}
+
+      {/* centered photo strip */}
       <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-        <div style={{height:"90%",aspectRatio:"9/16",position:"relative",overflow:"hidden",borderRadius:12,boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}>
-          <div style={{display:"flex",height:"100%",transform:`translateX(calc(${-current*100}% + ${dragX}px))`,transition:dragX===0?"transform 0.3s ease":"none"}}>
+        <div style={{height:"88%",aspectRatio:"9/16",position:"relative",overflow:"hidden",borderRadius:14,boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
+          <div style={{display:"flex",height:"100%",width:`${photos.length*100}%`,transform:`translateX(calc(${-current*100/photos.length}% + ${dragX/(photos.length||1)}px))`,transition:isDragging?"none":"transform 0.32s ease"}}>
             {photos.map((p,i) => (
-              <div key={i} style={{minWidth:"100%",height:"100%",background:g.bg,flexShrink:0}}>
+              <div key={i} style={{width:`${100/photos.length}%`,height:"100%",flexShrink:0,background:g.bg}}>
                 {p.url && <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
               </div>
             ))}
           </div>
-          {/* dot indicators */}
+          {/* arrows desktop */}
+          {photos.length > 1 && current > 0 && (
+            <button onClick={prevPhoto} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.55)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",zIndex:5}}>‹</button>
+          )}
+          {photos.length > 1 && current < photos.length - 1 && (
+            <button onClick={nextPhoto} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.55)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",zIndex:5}}>›</button>
+          )}
+          {/* dots */}
           {photos.length > 1 && (
-            <div style={{position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:5}}>
-              {photos.map((_,i) => <div key={i} style={{width:i===current?16:6,height:6,borderRadius:3,background:i===current?"#fff":"rgba(255,255,255,0.4)",transition:"all 0.2s"}}/>)}
+            <div style={{position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:5,zIndex:5}}>
+              {photos.map((_,i)=><div key={i} onClick={e=>{e.stopPropagation();setCurrent(i);}} style={{width:i===current?18:6,height:6,borderRadius:3,background:i===current?"#fff":"rgba(255,255,255,0.4)",transition:"all 0.2s",cursor:"pointer"}}/>)}
             </div>
           )}
         </div>
       </div>
+
       <HeartBurst visible={showHeart}/>
-      <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 60%,rgba(0,0,0,0.7) 100%)",pointerEvents:"none"}}/>
-      <SideActions item={album} liked={liked} onLike={onLike} onComment={onComment} onShare={handleShare} commentCount={commentCount}/>
-      {/* info */}
-      <div style={{position:"absolute",bottom:0,left:0,right:60,padding:"14px 16px 20px"}}>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,transparent 65%,rgba(0,0,0,0.7) 100%)",pointerEvents:"none"}}/>
+      <SideActions item={album} liked={liked} onLike={(e)=>{if(e)e.stopPropagation();onLike();}} onComment={(e)=>{if(e)e.stopPropagation();onComment();}} onShare={handleShare} commentCount={commentCount}/>
+
+      <div style={{position:"absolute",bottom:0,left:0,right:64,padding:"14px 16px 20px"}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(192,132,252,0.15)",border:"1px solid rgba(192,132,252,0.2)",borderRadius:20,padding:"3px 10px",marginBottom:8}}>
           <span style={{color:"#c084fc",fontSize:10,fontFamily:"monospace",letterSpacing:1}}>✦ GALERIA</span>
           <span style={{color:"rgba(192,132,252,0.6)",fontSize:10}}>{photos.length} foto{photos.length!==1?"s":""}</span>
@@ -266,7 +295,7 @@ function AlbumFeedItem({ album, liked, onLike, onTagClick, onComment, onNext, co
 
 // ── BUILD FEED ────────────────────────────────────────────────────────────────
 function buildFeed(videos, albums) {
-  const feed = []; let vi=0, ai=0;
+  const feed=[]; let vi=0, ai=0;
   while(vi<videos.length||ai<albums.length){
     const vCount=randInt(2,4);
     for(let i=0;i<vCount&&vi<videos.length;i++,vi++) feed.push({type:"video",data:videos[vi]});
@@ -278,101 +307,99 @@ function buildFeed(videos, albums) {
 
 // ── EXPLORE VIEW ──────────────────────────────────────────────────────────────
 function ExploreView({ activeTag, onTagClick, initialId }) {
-  const [rawData, setRawData] = useState({videos:[],albums:[]});
-  const [feed, setFeed] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [current, setCurrent] = useState(0);
-  const [liked, setLiked] = useState({});
-  const [commentCounts, setCommentCounts] = useState({});
-  const [commentPanel, setCommentPanel] = useState(null);
-  const containerRef = useRef(null);
-  const touchStartY = useRef(null);
+  const [rawData,setRawData]=useState({videos:[],albums:[]});
+  const [feed,setFeed]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [current,setCurrent]=useState(0);
+  const [liked,setLiked]=useState({});
+  const [commentCounts,setCommentCounts]=useState({});
+  const [commentPanel,setCommentPanel]=useState(null);
+  const containerRef=useRef(null);
+  const touchStartY=useRef(null);
+  const touchStartX=useRef(null);
 
-  useEffect(() => {
+  useEffect(()=>{
     setLoading(true); setCurrent(0);
-    const tag = activeTag ? `?tag=${activeTag}` : "";
+    const tag=activeTag?`?tag=${activeTag}`:"";
     Promise.all([
       fetch(`${API}/videos${tag}`).then(r=>r.json()).catch(()=>[]),
       fetch(`${API}/albums${tag}`).then(r=>r.json()).catch(()=>[]),
-    ]).then(([v,a]) => {
+    ]).then(([v,a])=>{
       setRawData({videos:v,albums:a});
-      const built = buildFeed(shuffle(v),shuffle(a));
-      const full = [...built,...buildFeed(shuffle(v),shuffle(a)),...buildFeed(shuffle(v),shuffle(a))];
+      const built=buildFeed(shuffle(v),shuffle(a));
+      const full=[...built,...buildFeed(shuffle(v),shuffle(a)),...buildFeed(shuffle(v),shuffle(a))];
       setFeed(full);
-      // Se tem ID inicial, encontra o índice
       if (initialId) {
-        const idx = full.findIndex(x => x.data.id === initialId);
-        if (idx >= 0) setCurrent(idx);
+        const idx=full.findIndex(x=>x.data.id===initialId);
+        if (idx>=0) setCurrent(idx);
       }
       setLoading(false);
     });
-  }, [activeTag, initialId]);
+  },[activeTag,initialId]);
 
-  useEffect(() => {
-    if (!rawData.videos.length && !rawData.albums.length) return;
-    if (current >= feed.length - 6) {
-      setFeed(f => [...f, ...buildFeed(shuffle(rawData.videos), shuffle(rawData.albums))]);
+  useEffect(()=>{
+    if(!rawData.videos.length&&!rawData.albums.length) return;
+    if(current>=feed.length-6){
+      setFeed(f=>[...f,...buildFeed(shuffle(rawData.videos),shuffle(rawData.albums))]);
     }
-  }, [current, feed.length, rawData]);
+  },[current,feed.length,rawData]);
 
-  const goNext = useCallback(() => setCurrent(c => c+1), []);
-  const goPrev = useCallback(() => setCurrent(c => Math.max(c-1,0)), []);
+  const goNext=useCallback(()=>setCurrent(c=>c+1),[]);
+  const goPrev=useCallback(()=>setCurrent(c=>Math.max(c-1,0)),[]);
 
-  useEffect(() => {
-    const el = containerRef.current; if (!el) return;
-    const h = (e) => { e.preventDefault(); if(e.deltaY>30) goNext(); else if(e.deltaY<-30) goPrev(); };
-    el.addEventListener("wheel", h, {passive:false});
-    return () => el.removeEventListener("wheel", h);
-  }, [goNext, goPrev]);
+  useEffect(()=>{
+    const el=containerRef.current; if(!el) return;
+    const h=(e)=>{e.preventDefault();if(e.deltaY>30)goNext();else if(e.deltaY<-30)goPrev();};
+    el.addEventListener("wheel",h,{passive:false});
+    return()=>el.removeEventListener("wheel",h);
+  },[goNext,goPrev]);
 
-  const handleLike = async (item) => {
-    const isLiked = !!liked[item.id];
-    setLiked(l => ({...l,[item.id]:!isLiked}));
-    const type = item.photos ? "albums" : "videos";
+  const handleLike=async(item)=>{
+    const isLiked=!!liked[item.id];
+    setLiked(l=>({...l,[item.id]:!isLiked}));
+    const type=item.photos?"albums":"videos";
     await fetch(`${API}/${type}/${item.id}/like`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:isLiked?"remove":"add"})}).catch(()=>{});
   };
 
-  const openComment = (item) => {
-    const type = item.photos ? "album" : "video";
-    setCommentPanel({postId:item.id,postType:type});
+  const windowSize=5;
+  const start=Math.max(0,current-windowSize);
+  const end=Math.min(feed.length-1,current+windowSize);
+
+  // Touch scroll — só vertical, horizontal é das fotos
+  const onTouchStart=(e)=>{touchStartY.current=e.touches[0].clientY;touchStartX.current=e.touches[0].clientX;};
+  const onTouchEnd=(e)=>{
+    if(!touchStartY.current) return;
+    const dy=touchStartY.current-e.changedTouches[0].clientY;
+    const dx=Math.abs(touchStartX.current-e.changedTouches[0].clientX);
+    if(Math.abs(dy)>dx&&Math.abs(dy)>60){ if(dy>0)goNext();else goPrev(); }
+    touchStartY.current=null; touchStartX.current=null;
   };
 
-  const handleCommentClose = (newCount, postId) => {
-    if (newCount !== undefined) setCommentCounts(c => ({...c,[postId]:newCount}));
-    setCommentPanel(null);
-  };
-
-  const windowSize = 5;
-  const start = Math.max(0, current - windowSize);
-  const end = Math.min(feed.length-1, current + windowSize);
-
-  return (
+  return(
     <div style={{width:"100%",height:"100%",background:"#000",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div ref={containerRef}
-        onTouchStart={e=>{touchStartY.current=e.touches[0].clientY;}}
-        onTouchEnd={e=>{if(!touchStartY.current)return;const d=touchStartY.current-e.changedTouches[0].clientY;if(d>60)goNext();else if(d<-60)goPrev();touchStartY.current=null;}}
+      <div ref={containerRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         style={{position:"relative",width:"min(100%,calc(100vh*9/16))",height:"100%",overflow:"hidden"}}>
-        {loading ? (
+        {loading?(
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%"}}><Spinner/></div>
-        ) : !feed.length ? (
+        ):!feed.length?(
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",color:"rgba(255,255,255,0.4)",flexDirection:"column",gap:8,fontFamily:"'DM Serif Display',serif",fontSize:18}}>
             <span style={{fontSize:36}}>◈</span>{activeTag?`#${activeTag} — sem resultados`:"Nenhum conteúdo ainda"}
           </div>
-        ) : (
+        ):(
           <>
-            {feed.slice(start,end+1).map((item,idx) => {
-              const i = start+idx;
-              return (
+            {feed.slice(start,end+1).map((item,idx)=>{
+              const i=start+idx;
+              return(
                 <div key={`${i}-${item.type}-${item.data.id}`} style={{position:"absolute",inset:0,transform:`translateY(${(i-current)*100}%)`,transition:"transform 0.45s cubic-bezier(0.4,0,0.2,1)"}}>
                   {item.type==="video"
-                    ? <VideoFeedItem video={item.data} liked={!!liked[item.data.id]} onLike={()=>handleLike(item.data)} onTagClick={onTagClick} onComment={()=>openComment(item.data)} commentCount={commentCounts[item.data.id]||0}/>
-                    : <AlbumFeedItem album={item.data} liked={!!liked[item.data.id]} onLike={()=>handleLike(item.data)} onTagClick={onTagClick} onComment={()=>openComment(item.data)} onNext={goNext} commentCount={commentCounts[item.data.id]||0}/>
+                    ?<VideoFeedItem video={item.data} liked={!!liked[item.data.id]} onLike={()=>handleLike(item.data)} onTagClick={onTagClick} onComment={()=>setCommentPanel({postId:item.data.id,postType:"video"})} commentCount={commentCounts[item.data.id]||0}/>
+                    :<AlbumFeedItem album={item.data} liked={!!liked[item.data.id]} onLike={()=>handleLike(item.data)} onTagClick={onTagClick} onComment={()=>setCommentPanel({postId:item.data.id,postType:"album"})} commentCount={commentCounts[item.data.id]||0}/>
                   }
                 </div>
               );
             })}
             <div style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",display:"flex",flexDirection:"column",gap:3}}>
-              {feed.slice(Math.max(0,current-4),current+5).map((item,i) => {
+              {feed.slice(Math.max(0,current-4),current+5).map((item,i)=>{
                 const abs=Math.max(0,current-4)+i;
                 return <div key={abs} onClick={()=>setCurrent(abs)} style={{width:abs===current?4:3,height:abs===current?20:6,borderRadius:2,background:abs===current?"#fff":item.type==="album"?"rgba(192,132,252,0.5)":"rgba(255,255,255,0.25)",cursor:"pointer",transition:"all 0.3s"}}/>;
               })}
@@ -380,8 +407,7 @@ function ExploreView({ activeTag, onTagClick, initialId }) {
           </>
         )}
       </div>
-      {commentPanel && <CommentsPanel postId={commentPanel.postId} postType={commentPanel.postType} onClose={()=>setCommentPanel(null)}/>}
-      <style>{`@keyframes heartBurst{0%{transform:scale(0);opacity:1}50%{transform:scale(1.4);opacity:1}100%{transform:scale(1);opacity:0}}`}</style>
+      {commentPanel&&<CommentsPanel postId={commentPanel.postId} postType={commentPanel.postType} onClose={()=>setCommentPanel(null)}/>}
     </div>
   );
 }
@@ -392,6 +418,7 @@ function GalleryView({ activeTag, onTagClick }) {
   const [loading,setLoading]=useState(true);
   const [liked,setLiked]=useState({});
   const [lightbox,setLightbox]=useState(null);
+  const [commentPanel,setCommentPanel]=useState(null);
 
   useEffect(()=>{
     setLoading(true);
@@ -436,67 +463,66 @@ function GalleryView({ activeTag, onTagClick }) {
         <div>{col1.map(a=><Card key={a.id} a={a}/>)}</div>
         <div>{col2.map(a=><Card key={a.id} a={a}/>)}</div>
       </div>}
+      {/* Lightbox centralizado 9:16 */}
       {lightbox&&(
-        <div onClick={()=>setLightbox(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <AlbumFeedItem album={lightbox} liked={!!liked[lightbox.id]} onLike={()=>handleLike(lightbox)} onTagClick={onTagClick} onComment={()=>{}} onNext={()=>setLightbox(null)} commentCount={0}/>
+        <div onClick={()=>setLightbox(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{width:"min(92vw,calc(92vh*9/16))",height:"min(92vh,calc(92vw*16/9))",position:"relative"}} onClick={e=>e.stopPropagation()}>
+            <AlbumFeedItem album={lightbox} liked={!!liked[lightbox.id]} onLike={()=>handleLike(lightbox)} onTagClick={onTagClick} onComment={()=>setCommentPanel({postId:lightbox.id,postType:"album"})} commentCount={0}/>
+            <button onClick={()=>setLightbox(null)} style={{position:"absolute",top:12,right:12,background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"50%",width:34,height:34,color:"#fff",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",zIndex:30}}>×</button>
+          </div>
         </div>
       )}
+      {commentPanel&&<CommentsPanel postId={commentPanel.postId} postType={commentPanel.postType} onClose={()=>setCommentPanel(null)}/>}
     </div>
   );
 }
 
-// ── TAGS VIEW (redesigned) ────────────────────────────────────────────────────
+// ── TAGS VIEW ─────────────────────────────────────────────────────────────────
 function TagsView({ onTagClick }) {
-  const [tags, setTags] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
+  const [tags,setTags]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [showAll,setShowAll]=useState(false);
 
-  useEffect(() => {
+  useEffect(()=>{
     fetch(`${API}/tags`).then(r=>r.json()).then(d=>{setTags(d);setLoading(false);}).catch(()=>setLoading(false));
-  }, []);
+  },[]);
 
-  const top5 = tags.slice(0, 5);
-  const rest = tags.slice(5);
+  const top5=tags.slice(0,5);
+  const rest=tags.slice(5);
 
-  return (
+  return(
     <div style={{height:"100%",overflowY:"auto",background:"#0a0a0f",padding:"24px 16px"}}>
       <p style={{color:"rgba(255,255,255,0.4)",fontSize:11,letterSpacing:3,fontFamily:"monospace",marginBottom:6}}>TRENDING</p>
       <h2 style={{color:"#fff",fontFamily:"'DM Serif Display',serif",fontSize:28,margin:"0 0 24px",fontWeight:400}}>Tags</h2>
-
-      {loading ? <div style={{display:"flex",justifyContent:"center",marginTop:60}}><Spinner/></div> : (
+      {loading?<div style={{display:"flex",justifyContent:"center",marginTop:60}}><Spinner/></div>:(
         <>
-          {/* Top 5 */}
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
-            {top5.map(({tag,count,coverUrl},idx) => (
-              <button key={tag} onClick={()=>onTagClick(tag)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,overflow:"hidden",cursor:"pointer",display:"flex",alignItems:"center",gap:0,height:72,textAlign:"left",padding:0,position:"relative"}}>
-                {/* thumb */}
+            {top5.map(({tag,count,coverUrl},idx)=>(
+              <button key={tag} onClick={()=>onTagClick(tag)} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,overflow:"hidden",cursor:"pointer",display:"flex",alignItems:"center",height:72,textAlign:"left",padding:0,position:"relative",width:"100%"}}>
                 <div style={{width:72,height:72,flexShrink:0,background:PHOTO_GRADIENTS[idx%PHOTO_GRADIENTS.length].bg,position:"relative",overflow:"hidden"}}>
-                  {coverUrl && <img src={coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
+                  {/* só mostra imagem se for URL de imagem (não mp4) */}
+                  {coverUrl&&!coverUrl.endsWith(".mp4")&&!coverUrl.endsWith(".webm")&&!coverUrl.endsWith(".mov")&&(
+                    <img src={coverUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>
+                  )}
                   <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,transparent,rgba(0,0,0,0.3))"}}/>
                 </div>
-                {/* rank */}
                 <div style={{position:"absolute",left:0,top:0,bottom:0,width:72,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <span style={{color:"rgba(255,255,255,0.15)",fontFamily:"'DM Serif Display',serif",fontSize:36,fontWeight:700,lineHeight:1}}>#{idx+1}</span>
+                  <span style={{color:"rgba(255,255,255,0.12)",fontFamily:"'DM Serif Display',serif",fontSize:32,fontWeight:700}}>{idx+1}</span>
                 </div>
-                {/* info */}
                 <div style={{flex:1,padding:"0 16px"}}>
                   <p style={{color:"#fff",fontFamily:"'DM Serif Display',serif",fontSize:18,margin:"0 0 3px",fontWeight:400}}>#{tag}</p>
                   <p style={{color:"rgba(255,255,255,0.4)",fontSize:12,margin:0,fontFamily:"monospace"}}>{count} post{count!==1?"s":""}</p>
                 </div>
-                <div style={{padding:"0 16px 0 0"}}>
-                  <span style={{color:"rgba(255,255,255,0.2)",fontSize:18}}>›</span>
-                </div>
+                <span style={{color:"rgba(255,255,255,0.2)",fontSize:18,padding:"0 16px 0 0"}}>›</span>
               </button>
             ))}
           </div>
-
-          {/* Ver todas */}
-          {rest.length > 0 && (
+          {rest.length>0&&(
             <>
               <button onClick={()=>setShowAll(x=>!x)} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"8px 20px",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:13,fontFamily:"monospace",marginBottom:16,display:"flex",alignItems:"center",gap:6}}>
                 {showAll?"▲ Ocultar":"▼ Ver todas as tags"} ({rest.length} restantes)
               </button>
-              {showAll && (
+              {showAll&&(
                 <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                   {rest.map(({tag,count})=>(
                     <button key={tag} onClick={()=>onTagClick(tag)} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"6px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontFamily:"monospace",display:"flex",alignItems:"center",gap:5}}>
@@ -513,19 +539,18 @@ function TagsView({ onTagClick }) {
   );
 }
 
-// ── TAG RESULTS VIEW (vídeos em 9:16 como o feed) ────────────────────────────
+// ── TAG RESULTS VIEW ──────────────────────────────────────────────────────────
 function TagResultsView({ tag, onBack, onTagClick }) {
-  const [videos, setVideos] = useState([]);
-  const [albums, setAlbums] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
-  const [liked, setLiked] = useState({});
-  const [commentCounts, setCommentCounts] = useState({});
-  const [commentPanel, setCommentPanel] = useState(null);
-  const [lightbox, setLightbox] = useState(null);
-  // mini feed for videos
-  const [videoIdx, setVideoIdx] = useState(0);
-  const containerRef = useRef(null);
+  const [videos,setVideos]=useState([]);
+  const [albums,setAlbums]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [filter,setFilter]=useState("all");
+  const [liked,setLiked]=useState({});
+  const [commentCounts,setCommentCounts]=useState({});
+  const [commentPanel,setCommentPanel]=useState(null);
+  const [lightbox,setLightbox]=useState(null);
+  const [videoIdx,setVideoIdx]=useState(0);
+  const containerRef=useRef(null);
 
   useEffect(()=>{
     setLoading(true);
@@ -535,54 +560,60 @@ function TagResultsView({ tag, onBack, onTagClick }) {
     ]).then(([v,a])=>{setVideos(v);setAlbums(a);setLoading(false);});
   },[tag]);
 
+  useEffect(()=>{
+    const el=containerRef.current; if(!el) return;
+    const h=(e)=>{e.preventDefault();if(e.deltaY>30)setVideoIdx(c=>Math.min(c+1,videos.length-1));else if(e.deltaY<-30)setVideoIdx(c=>Math.max(c-1,0));};
+    el.addEventListener("wheel",h,{passive:false});
+    return()=>el.removeEventListener("wheel",h);
+  },[videos.length]);
+
   const handleLike=async(item,type)=>{
     const isLiked=!!liked[item.id];
     setLiked(l=>({...l,[item.id]:!isLiked}));
     await fetch(`${API}/${type}/${item.id}/like`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:isLiked?"remove":"add"})}).catch(()=>{});
   };
 
-  const showVideos = filter!=="albums", showAlbums = filter!=="videos";
+  const showVideos=filter!=="albums", showAlbums=filter!=="videos";
+  const hasVideos=videos.length>0, hasAlbums=albums.length>0;
 
-  return (
+  return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:"#0a0a0f"}}>
-      {/* header */}
       <div style={{padding:"20px 20px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
         <button onClick={onBack} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13,padding:"0 0 10px",display:"flex",alignItems:"center",gap:6}}>← voltar</button>
         <h2 style={{color:"#fff",fontFamily:"'DM Serif Display',serif",fontSize:26,margin:"0 0 12px",fontWeight:400}}>#{tag}</h2>
-        <div style={{display:"flex",gap:6}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {[["all","Tudo"],["videos","Vídeos"],["albums","Fotos"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setFilter(v)} style={{background:filter===v?"rgba(192,132,252,0.15)":"transparent",border:`1px solid ${filter===v?"rgba(192,132,252,0.4)":"rgba(255,255,255,0.1)"}`,borderRadius:20,padding:"5px 16px",color:filter===v?"#c084fc":"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:12}}>{l}</button>
+            <button key={v} onClick={()=>setFilter(v)} style={{background:filter===v?"rgba(192,132,252,0.15)":"transparent",border:`1px solid ${filter===v?"rgba(192,132,252,0.4)":"rgba(255,255,255,0.1)"}`,borderRadius:20,padding:"5px 14px",color:filter===v?"#c084fc":"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:12}}>{l}</button>
           ))}
-          <span style={{marginLeft:"auto",color:"rgba(255,255,255,0.3)",fontSize:11,display:"flex",alignItems:"center"}}>
+          <span style={{marginLeft:"auto",color:"rgba(255,255,255,0.3)",fontSize:11}}>
             {(showVideos?videos.length:0)+(showAlbums?albums.length:0)} resultados
           </span>
         </div>
       </div>
 
       {loading?<div style={{display:"flex",justifyContent:"center",marginTop:60}}><Spinner/></div>:(
-        <div style={{flex:1,overflow:"hidden",display:"flex",gap:0}}>
+        <div style={{flex:1,overflow:"hidden",display:"flex"}}>
 
           {/* Video feed 9:16 */}
-          {showVideos && videos.length > 0 && (
-            <div style={{flex:showAlbums&&albums.length?"0 0 auto":1,width:showAlbums&&albums.length?"min(45%,180px)":"100%",height:"100%",background:"#000",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
-              <div ref={containerRef} style={{position:"relative",width:"100%",height:"100%",overflow:"hidden",maxWidth:"calc(100vh*9/16)"}}>
-                {videos.map((video,i) => (
+          {showVideos&&hasVideos&&(
+            <div ref={containerRef} style={{flex:showAlbums&&hasAlbums?"0 0 auto":1,width:showAlbums&&hasAlbums?"min(48%,200px)":"100%",height:"100%",background:"#000",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",borderRight:showAlbums&&hasAlbums?"1px solid rgba(255,255,255,0.06)":"none"}}>
+              <div style={{position:"relative",width:"100%",height:"100%",maxWidth:"calc(100vh*9/16)",overflow:"hidden"}}>
+                {videos.map((video,i)=>(
                   <div key={video.id} style={{position:"absolute",inset:0,transform:`translateY(${(i-videoIdx)*100}%)`,transition:"transform 0.4s cubic-bezier(0.4,0,0.2,1)"}}>
                     <VideoFeedItem video={video} liked={!!liked[video.id]} onLike={()=>handleLike(video,"videos")} onTagClick={onTagClick} onComment={()=>setCommentPanel({postId:video.id,postType:"video"})} commentCount={commentCounts[video.id]||0}/>
                   </div>
                 ))}
-                {/* scroll buttons */}
-                {videoIdx > 0 && <button onClick={()=>setVideoIdx(c=>c-1)} style={{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>↑</button>}
-                {videoIdx < videos.length-1 && <button onClick={()=>setVideoIdx(c=>c+1)} style={{position:"absolute",bottom:100,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>↓</button>}
+                {videoIdx>0&&<button onClick={()=>setVideoIdx(c=>c-1)} style={{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:30,height:30,color:"#fff",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>↑</button>}
+                {videoIdx<videos.length-1&&<button onClick={()=>setVideoIdx(c=>c+1)} style={{position:"absolute",bottom:110,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:30,height:30,color:"#fff",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>↓</button>}
               </div>
             </div>
           )}
 
           {/* Albums grid */}
-          {showAlbums && albums.length > 0 && (
-            <div style={{flex:1,overflowY:"auto",padding:"12px",borderLeft:showVideos&&videos.length?"1px solid rgba(255,255,255,0.06)":"none"}}>
+          {showAlbums&&hasAlbums&&(
+            <div style={{flex:1,overflowY:"auto",padding:"12px"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {albums.map(album => {
+                {albums.map(album=>{
                   const g=PHOTO_GRADIENTS[hashIdx(album.id,PHOTO_GRADIENTS.length)];
                   const {clean,tags}=parseTags(album.title||"");
                   return(
@@ -603,18 +634,18 @@ function TagResultsView({ tag, onBack, onTagClick }) {
             </div>
           )}
 
-          {!loading&&videos.length===0&&albums.length===0&&(
+          {!hasVideos&&!hasAlbums&&(
             <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.3)",fontFamily:"'DM Serif Display',serif",fontSize:18}}>Sem resultados para #{tag}</div>
           )}
         </div>
       )}
 
-      {commentPanel && <CommentsPanel postId={commentPanel.postId} postType={commentPanel.postType} onClose={()=>setCommentPanel(null)}/>}
-      {lightbox && (
-        <div onClick={()=>setLightbox(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.95)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{width:"min(94vw,calc(94vh*9/16))",height:"94vh",position:"relative"}} onClick={e=>e.stopPropagation()}>
-            <AlbumFeedItem album={lightbox} liked={!!liked[lightbox.id]} onLike={()=>handleLike(lightbox,"albums")} onTagClick={onTagClick} onComment={()=>{}} onNext={()=>setLightbox(null)} commentCount={0}/>
-            <button onClick={()=>setLightbox(null)} style={{position:"absolute",top:12,right:12,background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"50%",width:32,height:32,color:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",zIndex:30}}>×</button>
+      {commentPanel&&<CommentsPanel postId={commentPanel.postId} postType={commentPanel.postType} onClose={()=>setCommentPanel(null)}/>}
+      {lightbox&&(
+        <div onClick={()=>setLightbox(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{width:"min(92vw,calc(92vh*9/16))",height:"min(92vh,calc(92vw*16/9))",position:"relative"}} onClick={e=>e.stopPropagation()}>
+            <AlbumFeedItem album={lightbox} liked={!!liked[lightbox.id]} onLike={()=>handleLike(lightbox,"albums")} onTagClick={onTagClick} onComment={()=>setCommentPanel({postId:lightbox.id,postType:"album"})} commentCount={0}/>
+            <button onClick={()=>setLightbox(null)} style={{position:"absolute",top:12,right:12,background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"50%",width:34,height:34,color:"#fff",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",zIndex:30}}>×</button>
           </div>
         </div>
       )}
@@ -693,39 +724,33 @@ function AdminPanel({adminPassword}){
 
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view, setView] = useState("explore");
-  const [activeTag, setActiveTag] = useState(null);
-  const [initialId, setInitialId] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminPass, setAdminPass] = useState("");
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [passError, setPassError] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [view,setView]=useState("explore");
+  const [activeTag,setActiveTag]=useState(null);
+  const [initialId,setInitialId]=useState(null);
+  const [isAdmin,setIsAdmin]=useState(false);
+  const [adminPassword,setAdminPassword]=useState("");
+  const [adminPass,setAdminPass]=useState("");
+  const [adminOpen,setAdminOpen]=useState(false);
+  const [passError,setPassError]=useState(false);
+  const [loginLoading,setLoginLoading]=useState(false);
 
-  // Handle /v/:id URL
-  useEffect(() => {
-    const path = window.location.pathname;
-    const match = path.match(/^\/v\/(.+)$/);
-    if (match) { setInitialId(match[1]); setView("explore"); }
-  }, []);
+  useEffect(()=>{
+    const path=window.location.pathname;
+    const match=path.match(/^\/v\/(.+)$/);
+    if(match){setInitialId(match[1]);setView("explore");}
+  },[]);
 
-  const goHome = () => { setView("explore"); setActiveTag(null); setInitialId(null); history.pushState(null,"","/"); };
-  const handleTagClick = (tag) => { setActiveTag(tag); setView("tag-results"); };
-
-  const handleAdminLogin = async () => {
+  const goHome=()=>{setView("explore");setActiveTag(null);setInitialId(null);history.pushState(null,"","/");};
+  const handleTagClick=(tag)=>{setActiveTag(tag);setView("tag-results");};
+  const handleAdminLogin=async()=>{
     setLoginLoading(true);
-    try {
-      const res = await fetch(`${API}/admin/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:adminPass})});
-      if(res.ok){setIsAdmin(true);setAdminPassword(adminPass);setAdminOpen(false);setView("admin");setPassError(false);setAdminPass("");}
-      else setPassError(true);
-    } catch { setPassError(true); }
+    try{const res=await fetch(`${API}/admin/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:adminPass})});if(res.ok){setIsAdmin(true);setAdminPassword(adminPass);setAdminOpen(false);setView("admin");setPassError(false);setAdminPass("");}else setPassError(true);}catch{setPassError(true);}
     setLoginLoading(false);
   };
 
-  const navItems = [{id:"explore",icon:"◈",label:"Explore"},{id:"gallery",icon:"✦",label:"Gallery"},{id:"tags",icon:"#",label:"Tags"}];
+  const navItems=[{id:"explore",icon:"◈",label:"Explore"},{id:"gallery",icon:"✦",label:"Gallery"},{id:"tags",icon:"#",label:"Tags"}];
 
-  return (
+  return(
     <>
       <Security/>
       <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
