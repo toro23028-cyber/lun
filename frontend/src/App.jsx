@@ -98,7 +98,7 @@ function CommentsPanel({ postId, postType, onClose }) {
             </div>
           ))}
         </div>
-        <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",gap:8"}}>
+        <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",gap:8}}>
           <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Escreva um comentário..." style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:20,padding:"8px 14px",color:"#fff",fontSize:14,outline:"none"}}/>
           <button onClick={send} disabled={sending||!text.trim()} style={{background:"linear-gradient(135deg,#7c3aed,#c084fc)",border:"none",borderRadius:20,padding:"8px 16px",color:"#fff",cursor:sending?"not-allowed":"pointer",fontSize:13,flexShrink:0}}>
             {sending?<Spinner size={14}/>:"Enviar"}
