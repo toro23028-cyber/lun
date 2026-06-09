@@ -64,7 +64,7 @@ function HeartBurst({ visible }) {
 // Centralizado verticalmente, deslocado um pouco acima do centro
 function SideActions({ item, liked, onLike, onComment, onShare, commentCount }) {
   return (
-    <div style={{position:"absolute",right:12,top:"50%",transform:"translateY(-80%)",display:"flex",flexDirection:"column",alignItems:"center",gap:20,zIndex:10}}>
+    <div style={{position:"absolute",right:12,top:"55%",transform:"translateY(-20%)",display:"flex",flexDirection:"column",alignItems:"center",gap:20,zIndex:10}}>
       <button onClick={onLike} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:0}}>
         <div style={{width:44,height:44,borderRadius:"50%",background:"rgba(0,0,0,0.45)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,transition:"transform 0.15s",transform:liked?"scale(1.15)":"scale(1)"}}>
           <span style={{color:liked?"#f472b6":"#fff"}}>{liked?"♥":"♡"}</span>
